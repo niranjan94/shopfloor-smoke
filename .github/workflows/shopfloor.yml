@@ -80,7 +80,6 @@ jobs:
           github_app_private_key: ${{ secrets.SHOPFLOOR_GITHUB_APP_PRIVATE_KEY }}
           github_app_review_client_id: ${{ secrets.SHOPFLOOR_GITHUB_APP_REVIEW_CLIENT_ID }}
           github_app_review_private_key: ${{ secrets.SHOPFLOOR_GITHUB_APP_REVIEW_PRIVATE_KEY }}
-          ssh_signing_key: ${{ secrets.SSH_SIGNING_KEY }}
           trigger_label: "shopfloor:trigger"
 
   # Implement stage: split out so a consumer can swap in a beefier runner here
@@ -107,5 +106,4 @@ jobs:
           github_app_private_key: ${{ secrets.SHOPFLOOR_GITHUB_APP_PRIVATE_KEY }}
           github_app_review_client_id: ${{ secrets.SHOPFLOOR_GITHUB_APP_REVIEW_CLIENT_ID }}
           github_app_review_private_key: ${{ secrets.SHOPFLOOR_GITHUB_APP_REVIEW_PRIVATE_KEY }}
-          ssh_signing_key: ${{ secrets.SSH_SIGNING_KEY }}
           trigger_label: "shopfloor:trigger"
