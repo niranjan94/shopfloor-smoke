@@ -138,6 +138,8 @@ export default function Home() {
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState<"created" | "dueDate" | "priority">("created");
   const [loading, setLoading] = useState(true);
+  const [bulkSelect, setBulkSelect] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   useEffect(() => { loadData(); }, []);
 
@@ -205,6 +207,23 @@ export default function Home() {
   function resetForm() {
     setTitle(""); setDescription(""); setCategory("work");
     setPriority("medium"); setDueDate(""); setEditingId(null);
+  }
+
+  function toggleBulkSelect() {
+    setBulkSelect((prev) => {
+      const next = !prev;
+      if (!next) setSelectedIds(new Set());
+      return next;
+    });
+  }
+
+  function toggleSelected(id: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
   }
 
   async function cycleStatus(task: Task) {
@@ -450,6 +469,12 @@ export default function Home() {
         <div>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.875rem" }}>
             <h2>{filtered.length} {filtered.length === 1 ? "Task" : "Tasks"}</h2>
+            <button
+              className={bulkSelect ? "btn btn-muted btn-sm" : "btn btn-ghost btn-sm"}
+              onClick={toggleBulkSelect}
+            >
+              {bulkSelect ? "Cancel" : "Select"}
+            </button>
           </div>
 
           {filtered.length === 0 ? (
@@ -465,6 +490,21 @@ export default function Home() {
                   style={{ animation: `slideInUp 350ms ease-out ${idx * 30}ms both` }}
                 >
                   <div style={{ display: "flex", alignItems: "flex-start", gap: "0.875rem" }}>
+                    {bulkSelect && (
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.has(task.id)}
+                        onChange={() => toggleSelected(task.id)}
+                        aria-label={`Select task: ${task.title}`}
+                        style={{
+                          flexShrink: 0,
+                          marginTop: "4px",
+                          width: 18,
+                          height: 18,
+                          cursor: "pointer",
+                        }}
+                      />
+                    )}
                     {/* Status toggle */}
                     <button
                       onClick={() => cycleStatus(task)}
