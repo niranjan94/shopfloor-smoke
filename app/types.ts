@@ -9,6 +9,14 @@ export interface Task {
   createdAt: string;
   updatedAt: string;
   completedAt?: string;
+  subtasks: Subtask[];
+}
+
+export interface Subtask {
+  id: string;
+  title: string;
+  done: boolean;
+  createdAt: string;
 }
 
 export interface Category {

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Task, Category } from "./types";
+import { Task, Category, Subtask } from "./types";
 import { db } from "./db";
 import { MainLayout } from "./components/MainLayout";
 
@@ -28,6 +28,99 @@ function statusLabel(s: string) {
   if (s === "todo") return "To Do";
   if (s === "in-progress") return "In Progress";
   return "Done";
+}
+
+function allSubtasksDone(task: Task): boolean {
+  return task.subtasks.length > 0 && task.subtasks.every((s) => s.done);
+}
+
+function SubtaskList({
+  task,
+  onAdd,
+  onToggle,
+  onDelete,
+}: {
+  task: Task;
+  onAdd: (title: string) => void;
+  onToggle: (subtaskId: string) => void;
+  onDelete: (subtaskId: string) => void;
+}) {
+  const [draft, setDraft] = useState("");
+
+  function submit() {
+    const title = draft.trim();
+    if (!title) return;
+    onAdd(title);
+    setDraft("");
+  }
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: "0.375rem", marginTop: "0.75rem" }}>
+      {task.subtasks.map((s) => (
+        <div
+          key={s.id}
+          style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}
+        >
+          <button
+            onClick={() => onToggle(s.id)}
+            title={s.done ? "Mark not done" : "Mark done"}
+            style={{
+              flexShrink: 0,
+              width: 16,
+              height: 16,
+              borderRadius: "50%",
+              border: `2px solid ${s.done ? "var(--accent-gold)" : "var(--border-hover)"}`,
+              background: s.done ? "var(--accent-gold)" : "transparent",
+              color: s.done ? "#0c1524" : "transparent",
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: "0.6rem",
+              fontWeight: 700,
+              transition: "all 150ms ease",
+            }}
+          >
+            {s.done ? "✓" : ""}
+          </button>
+          <span
+            style={{
+              flex: 1,
+              minWidth: 0,
+              fontSize: "0.8125rem",
+              color: s.done ? "var(--text-muted)" : "var(--text-primary)",
+              textDecoration: s.done ? "line-through" : "none",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {s.title}
+          </span>
+          <button
+            className="btn btn-ghost btn-sm"
+            onClick={() => onDelete(s.id)}
+          >
+            Delete
+          </button>
+        </div>
+      ))}
+      <div style={{ display: "flex", gap: "0.375rem" }}>
+        <input
+          className="input"
+          type="text"
+          placeholder="Add subtask…"
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && submit()}
+          style={{ flex: 1, fontSize: "0.8125rem" }}
+        />
+        <button className="btn btn-muted btn-sm" onClick={submit}>
+          Add
+        </button>
+      </div>
+    </div>
+  );
 }
 
 export default function Home() {
@@ -79,6 +172,7 @@ export default function Home() {
       createdAt: existing?.createdAt ?? now,
       updatedAt: now,
       completedAt: existing?.completedAt,
+      subtasks: existing?.subtasks ?? [],
     };
     try {
       if (editingId) {
@@ -114,16 +208,94 @@ export default function Home() {
   }
 
   async function cycleStatus(task: Task) {
-    const next: Record<string, Task["status"]> = { todo: "in-progress", "in-progress": "done", done: "todo" };
+    const current = task.status;
+    let nextStatus: Task["status"];
+    if (current === "todo") {
+      nextStatus = "in-progress";
+    } else if (current === "in-progress") {
+      nextStatus =
+        task.subtasks.length === 0 || allSubtasksDone(task) ? "done" : "todo";
+    } else {
+      nextStatus = "todo";
+    }
+    const now = new Date().toISOString();
     const updated: Task = {
       ...task,
-      status: next[task.status],
-      completedAt: next[task.status] === "done" ? new Date().toISOString() : undefined,
-      updatedAt: new Date().toISOString(),
+      status: nextStatus,
+      completedAt: nextStatus === "done" ? now : undefined,
+      updatedAt: now,
     };
     try {
       await db.updateTask(updated);
       setTasks((prev) => prev.map((t) => (t.id === task.id ? updated : t)));
+    } catch (e) { console.error(e); }
+  }
+
+  async function addSubtask(taskId: string, rawTitle: string): Promise<void> {
+    const title = rawTitle.trim();
+    if (!title) return;
+    const parent = tasks.find((t) => t.id === taskId);
+    if (!parent) return;
+    const now = new Date().toISOString();
+    const newSubtask: Subtask = {
+      id: Date.now().toString(),
+      title,
+      done: false,
+      createdAt: now,
+    };
+    const demote = parent.status === "done";
+    const updated: Task = {
+      ...parent,
+      subtasks: [...parent.subtasks, newSubtask],
+      status: demote ? "in-progress" : parent.status,
+      completedAt: demote ? undefined : parent.completedAt,
+      updatedAt: now,
+    };
+    try {
+      await db.updateTask(updated);
+      setTasks((prev) => prev.map((t) => (t.id === taskId ? updated : t)));
+    } catch (e) { console.error(e); }
+  }
+
+  async function toggleSubtask(taskId: string, subtaskId: string): Promise<void> {
+    const parent = tasks.find((t) => t.id === taskId);
+    if (!parent) return;
+    const nextSubtasks = parent.subtasks.map((s) =>
+      s.id === subtaskId ? { ...s, done: !s.done } : s,
+    );
+    const now = new Date().toISOString();
+    const allDone = nextSubtasks.length > 0 && nextSubtasks.every((s) => s.done);
+    const demote = parent.status === "done" && !allDone;
+    const updated: Task = {
+      ...parent,
+      subtasks: nextSubtasks,
+      status: demote ? "in-progress" : parent.status,
+      completedAt: demote ? undefined : parent.completedAt,
+      updatedAt: now,
+    };
+    try {
+      await db.updateTask(updated);
+      setTasks((prev) => prev.map((t) => (t.id === taskId ? updated : t)));
+    } catch (e) { console.error(e); }
+  }
+
+  async function deleteSubtask(taskId: string, subtaskId: string): Promise<void> {
+    const parent = tasks.find((t) => t.id === taskId);
+    if (!parent) return;
+    const nextSubtasks = parent.subtasks.filter((s) => s.id !== subtaskId);
+    const now = new Date().toISOString();
+    const allDone = nextSubtasks.length > 0 && nextSubtasks.every((s) => s.done);
+    const demote = parent.status === "done" && nextSubtasks.length > 0 && !allDone;
+    const updated: Task = {
+      ...parent,
+      subtasks: nextSubtasks,
+      status: demote ? "in-progress" : parent.status,
+      completedAt: demote ? undefined : parent.completedAt,
+      updatedAt: now,
+    };
+    try {
+      await db.updateTask(updated);
+      setTasks((prev) => prev.map((t) => (t.id === taskId ? updated : t)));
     } catch (e) { console.error(e); }
   }
 
@@ -296,7 +468,11 @@ export default function Home() {
                     {/* Status toggle */}
                     <button
                       onClick={() => cycleStatus(task)}
-                      title={`Status: ${statusLabel(task.status)} — click to advance`}
+                      title={
+                        task.status === "in-progress" && task.subtasks.length > 0 && !allSubtasksDone(task)
+                          ? `Status: ${statusLabel(task.status)} — finish subtasks to mark done`
+                          : `Status: ${statusLabel(task.status)} — click to advance`
+                      }
                       style={{
                         flexShrink: 0,
                         marginTop: "2px",
@@ -352,6 +528,12 @@ export default function Home() {
                           </span>
                         )}
                       </div>
+                      <SubtaskList
+                        task={task}
+                        onAdd={(title) => addSubtask(task.id, title)}
+                        onToggle={(subtaskId) => toggleSubtask(task.id, subtaskId)}
+                        onDelete={(subtaskId) => deleteSubtask(task.id, subtaskId)}
+                      />
                     </div>
 
                     {/* Actions — always visible */}
