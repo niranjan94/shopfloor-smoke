@@ -50,7 +50,7 @@ export default function Dashboard() {
     <MainLayout>
       <div className="animate-fade-in" style={{ display: "flex", flexDirection: "column", gap: "2rem" }}>
         <div>
-          <h1>Dashboard Overview</h1>
+          <h1>Dashboard Overview (smoke-20260521-7a9f/quick)</h1>
           <p style={{ marginTop: "0.25rem", color: "var(--text-muted)", fontSize: "0.875rem" }}>
             Your productivity at a glance
           </p>
