@@ -32,4 +32,4 @@ Open [http://localhost:3000](http://localhost:3000).
 | Language | TypeScript 5        |
 <!-- healthcheck -->
 <!-- mutex-check -->
-<!-- last-smoke: 2026-05-21 -->
+<!-- last-smoke: smoke-20260521-7a9f/skip-review-and-revise -->
