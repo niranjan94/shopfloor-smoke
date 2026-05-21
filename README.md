@@ -32,3 +32,5 @@ Open [http://localhost:3000](http://localhost:3000).
 | Language | TypeScript 5        |
 <!-- healthcheck -->
 <!-- mutex-check -->
+
+<!-- smoke smoke-20260521-b11b/review-only -->
