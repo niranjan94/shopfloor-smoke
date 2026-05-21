@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Task, Category, Subtask } from "./types";
 import { db } from "./db";
 import { MainLayout } from "./components/MainLayout";
+import { BulkActionBar } from "./components/BulkActionBar";
 
 const DEFAULT_CATEGORIES: Category[] = [
   { id: "work",     name: "Work",     color: "bg-blue-100 text-blue-900" },
@@ -224,6 +225,19 @@ export default function Home() {
       else next.add(id);
       return next;
     });
+  }
+
+  async function handleBulkDelete() {
+    const ids = Array.from(selectedIds);
+    for (const id of ids) {
+      try {
+        await db.deleteTask(id);
+      } catch (e) {
+        console.error(e);
+      }
+    }
+    setTasks((prev) => prev.filter((t) => !selectedIds.has(t.id)));
+    setSelectedIds(new Set());
   }
 
   async function cycleStatus(task: Task) {
@@ -464,6 +478,14 @@ export default function Home() {
             </div>
           </div>
         </div>
+
+        {bulkSelect && (
+          <BulkActionBar
+            count={selectedIds.size}
+            onDeleteSelected={handleBulkDelete}
+            onCancel={toggleBulkSelect}
+          />
+        )}
 
         {/* Task list */}
         <div>
