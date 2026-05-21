@@ -375,6 +375,7 @@ export default function Home() {
   return (
     <MainLayout>
       <div className="animate-fade-in" style={{ display: "flex", flexDirection: "column", gap: "2rem" }}>
+        {/* smoke: smoke-20260521-7a9f/revision-loop */}
 
         {/* Header */}
         <div>
