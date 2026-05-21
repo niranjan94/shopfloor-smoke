@@ -421,7 +421,7 @@ export default function Home() {
               onChange={(e) => setSearchQuery(e.target.value)}
             />
             <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "0.75rem" }}>
-              <select className="input" value={filterStatus} onChange={(e) => setFilterStatus(e.target.value as any)}>
+              <select className="input" value={filterStatus} onChange={(e) => setFilterStatus(e.target.value as "all" | "todo" | "in-progress" | "done")}>
                 <option value="all">All Status</option>
                 <option value="todo">To Do</option>
                 <option value="in-progress">In Progress</option>
@@ -437,7 +437,7 @@ export default function Home() {
                 <option value="medium">Medium</option>
                 <option value="low">Low</option>
               </select>
-              <select className="input" value={sortBy} onChange={(e) => setSortBy(e.target.value as any)}>
+              <select className="input" value={sortBy} onChange={(e) => setSortBy(e.target.value as "created" | "dueDate" | "priority")}>
                 <option value="created">Newest first</option>
                 <option value="dueDate">Due date</option>
                 <option value="priority">Priority</option>
