@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Task, Category } from "./types";
+import { Task, Category, Subtask } from "./types";
 import { db } from "./db";
 import { MainLayout } from "./components/MainLayout";
 
@@ -79,6 +79,7 @@ export default function Home() {
       createdAt: existing?.createdAt ?? now,
       updatedAt: now,
       completedAt: existing?.completedAt,
+      subtasks: existing?.subtasks ?? [],
     };
     try {
       if (editingId) {
