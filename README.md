@@ -33,3 +33,5 @@ Open [http://localhost:3000](http://localhost:3000).
 <!-- healthcheck -->
 <!-- mutex-check -->
 <!-- last-smoke: 2026-05-21 -->
+
+<!-- smoke smoke-20260521-5a6a/review-only -->
