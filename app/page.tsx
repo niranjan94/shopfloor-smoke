@@ -34,6 +34,95 @@ function canMarkDone(task: Task): boolean {
   return task.subtasks.length > 0 && task.subtasks.every((s) => s.done);
 }
 
+function SubtaskList({
+  task,
+  onAdd,
+  onToggle,
+  onDelete,
+}: {
+  task: Task;
+  onAdd: (title: string) => void;
+  onToggle: (subtaskId: string) => void;
+  onDelete: (subtaskId: string) => void;
+}) {
+  const [draft, setDraft] = useState("");
+
+  function submit() {
+    const title = draft.trim();
+    if (!title) return;
+    onAdd(title);
+    setDraft("");
+  }
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: "0.375rem", marginTop: "0.75rem" }}>
+      {task.subtasks.map((s) => (
+        <div
+          key={s.id}
+          style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}
+        >
+          <button
+            onClick={() => onToggle(s.id)}
+            title={s.done ? "Mark not done" : "Mark done"}
+            style={{
+              flexShrink: 0,
+              width: 16,
+              height: 16,
+              borderRadius: "50%",
+              border: `2px solid ${s.done ? "var(--accent-gold)" : "var(--border-hover)"}`,
+              background: s.done ? "var(--accent-gold)" : "transparent",
+              color: s.done ? "#0c1524" : "transparent",
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: "0.6rem",
+              fontWeight: 700,
+              transition: "all 150ms ease",
+            }}
+          >
+            {s.done ? "✓" : ""}
+          </button>
+          <span
+            style={{
+              flex: 1,
+              minWidth: 0,
+              fontSize: "0.8125rem",
+              color: s.done ? "var(--text-muted)" : "var(--text-primary)",
+              textDecoration: s.done ? "line-through" : "none",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {s.title}
+          </span>
+          <button
+            className="btn btn-ghost btn-sm"
+            onClick={() => onDelete(s.id)}
+          >
+            Delete
+          </button>
+        </div>
+      ))}
+      <div style={{ display: "flex", gap: "0.375rem" }}>
+        <input
+          className="input"
+          type="text"
+          placeholder="Add subtask…"
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && submit()}
+          style={{ flex: 1, fontSize: "0.8125rem" }}
+        />
+        <button className="btn btn-muted btn-sm" onClick={submit}>
+          Add
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function Home() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [categories, setCategories] = useState<Category[]>(DEFAULT_CATEGORIES);
@@ -436,6 +525,12 @@ export default function Home() {
                           </span>
                         )}
                       </div>
+                      <SubtaskList
+                        task={task}
+                        onAdd={(title) => addSubtask(task.id, title)}
+                        onToggle={(subtaskId) => toggleSubtask(task.id, subtaskId)}
+                        onDelete={(subtaskId) => deleteSubtask(task.id, subtaskId)}
+                      />
                     </div>
 
                     {/* Actions — always visible */}
