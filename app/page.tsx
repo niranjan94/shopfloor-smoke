@@ -30,7 +30,7 @@ function statusLabel(s: string) {
   return "Done";
 }
 
-function canMarkDone(task: Task): boolean {
+function allSubtasksDone(task: Task): boolean {
   return task.subtasks.length > 0 && task.subtasks.every((s) => s.done);
 }
 
@@ -214,7 +214,7 @@ export default function Home() {
       nextStatus = "in-progress";
     } else if (current === "in-progress") {
       nextStatus =
-        task.subtasks.length === 0 || canMarkDone(task) ? "done" : "todo";
+        task.subtasks.length === 0 || allSubtasksDone(task) ? "done" : "todo";
     } else {
       nextStatus = "todo";
     }
@@ -243,9 +243,12 @@ export default function Home() {
       done: false,
       createdAt: now,
     };
+    const demote = parent.status === "done";
     const updated: Task = {
       ...parent,
       subtasks: [...parent.subtasks, newSubtask],
+      status: demote ? "in-progress" : parent.status,
+      completedAt: demote ? undefined : parent.completedAt,
       updatedAt: now,
     };
     try {
@@ -466,7 +469,7 @@ export default function Home() {
                     <button
                       onClick={() => cycleStatus(task)}
                       title={
-                        task.status === "in-progress" && task.subtasks.length > 0 && !canMarkDone(task)
+                        task.status === "in-progress" && task.subtasks.length > 0 && !allSubtasksDone(task)
                           ? `Status: ${statusLabel(task.status)} — finish subtasks to mark done`
                           : `Status: ${statusLabel(task.status)} — click to advance`
                       }
