@@ -30,6 +30,10 @@ function statusLabel(s: string) {
   return "Done";
 }
 
+function canMarkDone(task: Task): boolean {
+  return task.subtasks.length > 0 && task.subtasks.every((s) => s.done);
+}
+
 export default function Home() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [categories, setCategories] = useState<Category[]>(DEFAULT_CATEGORIES);
@@ -115,16 +119,91 @@ export default function Home() {
   }
 
   async function cycleStatus(task: Task) {
-    const next: Record<string, Task["status"]> = { todo: "in-progress", "in-progress": "done", done: "todo" };
+    const current = task.status;
+    let nextStatus: Task["status"];
+    if (current === "todo") {
+      nextStatus = "in-progress";
+    } else if (current === "in-progress") {
+      nextStatus =
+        task.subtasks.length === 0 || canMarkDone(task) ? "done" : "todo";
+    } else {
+      nextStatus = "todo";
+    }
+    const now = new Date().toISOString();
     const updated: Task = {
       ...task,
-      status: next[task.status],
-      completedAt: next[task.status] === "done" ? new Date().toISOString() : undefined,
-      updatedAt: new Date().toISOString(),
+      status: nextStatus,
+      completedAt: nextStatus === "done" ? now : undefined,
+      updatedAt: now,
     };
     try {
       await db.updateTask(updated);
       setTasks((prev) => prev.map((t) => (t.id === task.id ? updated : t)));
+    } catch (e) { console.error(e); }
+  }
+
+  async function addSubtask(taskId: string, rawTitle: string): Promise<void> {
+    const title = rawTitle.trim();
+    if (!title) return;
+    const parent = tasks.find((t) => t.id === taskId);
+    if (!parent) return;
+    const now = new Date().toISOString();
+    const newSubtask: Subtask = {
+      id: Date.now().toString(),
+      title,
+      done: false,
+      createdAt: now,
+    };
+    const updated: Task = {
+      ...parent,
+      subtasks: [...parent.subtasks, newSubtask],
+      updatedAt: now,
+    };
+    try {
+      await db.updateTask(updated);
+      setTasks((prev) => prev.map((t) => (t.id === taskId ? updated : t)));
+    } catch (e) { console.error(e); }
+  }
+
+  async function toggleSubtask(taskId: string, subtaskId: string): Promise<void> {
+    const parent = tasks.find((t) => t.id === taskId);
+    if (!parent) return;
+    const nextSubtasks = parent.subtasks.map((s) =>
+      s.id === subtaskId ? { ...s, done: !s.done } : s,
+    );
+    const now = new Date().toISOString();
+    const allDone = nextSubtasks.length > 0 && nextSubtasks.every((s) => s.done);
+    const demote = parent.status === "done" && !allDone;
+    const updated: Task = {
+      ...parent,
+      subtasks: nextSubtasks,
+      status: demote ? "in-progress" : parent.status,
+      completedAt: demote ? undefined : parent.completedAt,
+      updatedAt: now,
+    };
+    try {
+      await db.updateTask(updated);
+      setTasks((prev) => prev.map((t) => (t.id === taskId ? updated : t)));
+    } catch (e) { console.error(e); }
+  }
+
+  async function deleteSubtask(taskId: string, subtaskId: string): Promise<void> {
+    const parent = tasks.find((t) => t.id === taskId);
+    if (!parent) return;
+    const nextSubtasks = parent.subtasks.filter((s) => s.id !== subtaskId);
+    const now = new Date().toISOString();
+    const allDone = nextSubtasks.length > 0 && nextSubtasks.every((s) => s.done);
+    const demote = parent.status === "done" && nextSubtasks.length > 0 && !allDone;
+    const updated: Task = {
+      ...parent,
+      subtasks: nextSubtasks,
+      status: demote ? "in-progress" : parent.status,
+      completedAt: demote ? undefined : parent.completedAt,
+      updatedAt: now,
+    };
+    try {
+      await db.updateTask(updated);
+      setTasks((prev) => prev.map((t) => (t.id === taskId ? updated : t)));
     } catch (e) { console.error(e); }
   }
 
@@ -297,7 +376,11 @@ export default function Home() {
                     {/* Status toggle */}
                     <button
                       onClick={() => cycleStatus(task)}
-                      title={`Status: ${statusLabel(task.status)} — click to advance`}
+                      title={
+                        task.status === "in-progress" && task.subtasks.length > 0 && !canMarkDone(task)
+                          ? `Status: ${statusLabel(task.status)} — finish subtasks to mark done`
+                          : `Status: ${statusLabel(task.status)} — click to advance`
+                      }
                       style={{
                         flexShrink: 0,
                         marginTop: "2px",
