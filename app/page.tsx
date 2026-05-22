@@ -30,6 +30,15 @@ function statusLabel(s: string) {
   return "Done";
 }
 
+function allSubtasksDone(task: Task): boolean {
+  return task.subtasks.length === 0 || task.subtasks.every((s) => s.done);
+}
+
+function rollupStatus(current: Task["status"], task: Task): Task["status"] {
+  if (current === "done" && !allSubtasksDone(task)) return "in-progress";
+  return current;
+}
+
 export default function Home() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [categories, setCategories] = useState<Category[]>(DEFAULT_CATEGORIES);
@@ -116,10 +125,13 @@ export default function Home() {
 
   async function cycleStatus(task: Task) {
     const next: Record<string, Task["status"]> = { todo: "in-progress", "in-progress": "done", done: "todo" };
+    const nextRaw = next[task.status];
+    const capped = rollupStatus(nextRaw, task);
+    const nextStatus = capped === nextRaw ? nextRaw : "todo";
     const updated: Task = {
       ...task,
-      status: next[task.status],
-      completedAt: next[task.status] === "done" ? new Date().toISOString() : undefined,
+      status: nextStatus,
+      completedAt: nextStatus === "done" ? new Date().toISOString() : undefined,
       updatedAt: new Date().toISOString(),
     };
     try {
