@@ -30,6 +30,10 @@ function statusLabel(s: string) {
   return "Done";
 }
 
+function canBeDone(task: Task): boolean {
+  return task.subtasks.length === 0 || task.subtasks.every((s) => s.done);
+}
+
 export default function Home() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [categories, setCategories] = useState<Category[]>(DEFAULT_CATEGORIES);
@@ -115,12 +119,17 @@ export default function Home() {
   }
 
   async function cycleStatus(task: Task) {
-    const next: Record<string, Task["status"]> = { todo: "in-progress", "in-progress": "done", done: "todo" };
+    let nextStatus: Task["status"];
+    if (task.status === "todo") nextStatus = "in-progress";
+    else if (task.status === "in-progress") nextStatus = canBeDone(task) ? "done" : "todo";
+    else nextStatus = "todo";
+
+    const now = new Date().toISOString();
     const updated: Task = {
       ...task,
-      status: next[task.status],
-      completedAt: next[task.status] === "done" ? new Date().toISOString() : undefined,
-      updatedAt: new Date().toISOString(),
+      status: nextStatus,
+      completedAt: nextStatus === "done" ? now : undefined,
+      updatedAt: now,
     };
     try {
       await db.updateTask(updated);
