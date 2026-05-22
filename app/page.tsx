@@ -377,7 +377,11 @@ export default function Home() {
                     {/* Status toggle */}
                     <button
                       onClick={() => cycleStatus(task)}
-                      title={`Status: ${statusLabel(task.status)} — click to advance`}
+                      title={
+                        !allSubtasksDone(task) && task.status === "in-progress"
+                          ? `Status: ${statusLabel(task.status)} — finish subtasks to mark done`
+                          : `Status: ${statusLabel(task.status)} — click to advance`
+                      }
                       style={{
                         flexShrink: 0,
                         marginTop: "2px",
@@ -432,6 +436,91 @@ export default function Home() {
                             {new Date(task.dueDate + "T00:00:00").toLocaleDateString(undefined, { month: "short", day: "numeric" })}
                           </span>
                         )}
+                      </div>
+
+                      <div
+                        style={{
+                          marginTop: "0.75rem",
+                          paddingTop: "0.75rem",
+                          borderTop: "1px solid var(--border)",
+                          display: "flex",
+                          flexDirection: "column",
+                          gap: "0.5rem",
+                        }}
+                      >
+                        {task.subtasks.length > 0 && (
+                          <div style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
+                            {task.subtasks.filter((s) => s.done).length} / {task.subtasks.length} done
+                          </div>
+                        )}
+
+                        {task.subtasks.map((sub) => (
+                          <div
+                            key={sub.id}
+                            style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}
+                          >
+                            <button
+                              onClick={() => toggleSubtask(task.id, sub.id)}
+                              title={sub.done ? "Mark as not done" : "Mark as done"}
+                              style={{
+                                flexShrink: 0,
+                                width: 16,
+                                height: 16,
+                                borderRadius: "50%",
+                                border: `2px solid ${sub.done ? "var(--accent-gold)" : "var(--border-hover)"}`,
+                                background: sub.done ? "var(--accent-gold)" : "transparent",
+                                color: sub.done ? "#0c1524" : "transparent",
+                                cursor: "pointer",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                fontSize: "0.6rem",
+                                fontWeight: 700,
+                                transition: "all 150ms ease",
+                              }}
+                            >
+                              {sub.done ? "✓" : ""}
+                            </button>
+                            <span
+                              style={{
+                                flex: 1,
+                                fontSize: "0.8125rem",
+                                color: sub.done ? "var(--text-muted)" : "var(--text-primary)",
+                                textDecoration: sub.done ? "line-through" : "none",
+                              }}
+                            >
+                              {sub.title}
+                            </span>
+                            <button
+                              className="btn btn-ghost btn-sm"
+                              onClick={() => deleteSubtask(task.id, sub.id)}
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        ))}
+
+                        <div style={{ display: "flex", gap: "0.5rem" }}>
+                          <input
+                            className="input"
+                            type="text"
+                            placeholder="Add subtask…"
+                            value={subtaskDraft[task.id] ?? ""}
+                            onChange={(e) =>
+                              setSubtaskDraft((prev) => ({ ...prev, [task.id]: e.target.value }))
+                            }
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") {
+                                e.preventDefault();
+                                addSubtask(task.id);
+                              }
+                            }}
+                            style={{ flex: 1 }}
+                          />
+                          <button className="btn btn-sm" onClick={() => addSubtask(task.id)}>
+                            Add
+                          </button>
+                        </div>
                       </div>
                     </div>
 
