@@ -32,3 +32,4 @@ Open [http://localhost:3000](http://localhost:3000).
 | Language | TypeScript 5        |
 
 <!-- last-smoke: 2026-05-22 -->
+<!-- last-smoke: 2026-05-22 -->
