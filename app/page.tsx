@@ -430,6 +430,64 @@ export default function Home() {
                       </button>
                     </div>
                   </div>
+
+                  <div style={{ marginTop: "0.75rem", paddingLeft: "calc(22px + 0.875rem)" }}>
+                    {(() => {
+                      const total = task.subtasks.length;
+                      const done = task.subtasks.filter((s) => s.done).length;
+                      return total > 0 ? (
+                        <div style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginBottom: "0.375rem" }}>
+                          Subtasks ({done} done / {total} total)
+                        </div>
+                      ) : null;
+                    })()}
+
+                    {task.subtasks.map((s) => (
+                      <div
+                        key={s.id}
+                        style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.25rem" }}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={s.done}
+                          onChange={() => toggleSubtask(task, s.id)}
+                        />
+                        <span
+                          style={{
+                            flex: 1,
+                            fontSize: "0.8125rem",
+                            color: s.done ? "var(--text-muted)" : "var(--text-primary)",
+                            textDecoration: s.done ? "line-through" : "none",
+                          }}
+                        >
+                          {s.title}
+                        </span>
+                        <button
+                          className="btn btn-ghost btn-sm"
+                          onClick={() => deleteSubtask(task, s.id)}
+                          aria-label="Delete subtask"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ))}
+
+                    <input
+                      className="input"
+                      type="text"
+                      placeholder="Add subtask…"
+                      value={subtaskDrafts[task.id] ?? ""}
+                      onChange={(e) =>
+                        setSubtaskDrafts((prev) => ({ ...prev, [task.id]: e.target.value }))
+                      }
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          addSubtask(task, subtaskDrafts[task.id] ?? "");
+                        }
+                      }}
+                      style={{ marginTop: "0.375rem", fontSize: "0.8125rem" }}
+                    />
+                  </div>
                 </div>
               ))}
             </div>
