@@ -1,51 +1,56 @@
-# Plan — Issue #85: 'Today' quick-filter button on tasks list
+# Plan: Add "Today" quick-filter to the tasks list
 
-## Context
+Source issue: niranjan94/shopfloor-smoke#85
 
-The tasks home page (`app/page.tsx`) renders a filters bar with status, category, priority, and sort controls. Triage classified this issue as **medium**: there is no design spec — the plan is derived from the issue body and the triage comment.
+This is a medium-complexity change. No design spec was authored; this plan is derived directly from the issue body and triage classification comment. All work is localized to `app/page.tsx`. No schema changes, no new files, no changes to `app/types.ts` or `app/db.ts`.
 
-Required behavior:
+## Scope
 
-- Add a **Today** toggle button to the existing Filters section that, when active, filters the list to tasks whose `createdAt` is within the last 24 hours of `Date.now()`.
-- The toggle is a client-only boolean piece of state; pressing it again clears it.
-- The toggle composes with the existing status / category / priority / search filters (it is *additive* — all active filters must pass).
-- The empty-state copy ("No tasks match your filters.") and the `{filtered.length} Tasks` heading must reflect the new predicate without extra changes (both already key off `filtered`).
-- `Task.createdAt` is already an ISO string used by the "Newest first" sort at `app/page.tsx:150`, so `new Date(t.createdAt).getTime()` is the canonical way to read it.
+- Add client-side filter state `filterToday: boolean` (default `false`) to the `Home` component.
+- Extend the existing `filtered` derivation (currently `app/page.tsx:130-151`) with an additional predicate: when `filterToday` is `true`, keep only tasks whose `createdAt` is within the last 24 hours (i.e. `Date.now() - new Date(t.createdAt).getTime() <= 24 * 60 * 60 * 1000`).
+- Add a single toggle button labelled **Today** to the Filters section (the existing `glass`-styled filter card at `app/page.tsx:242-275`), placed on its own row above the existing 4-column select grid so the grid layout is not disturbed. The button reuses existing `btn` classes: `btn btn-primary` when active, `btn btn-ghost` when inactive, and carries `aria-pressed={filterToday}` for accessibility.
 
-All edits are localized to `app/page.tsx`. No schema changes, no new files, no new dependencies, no changes to `app/db.ts` or `app/types.ts`.
+Out of scope:
+- Any change to `Task.createdAt` semantics (it is already an ISO string; see `app/types.ts:9` and the existing sort at `app/page.tsx:150`).
+- Persisting filter state across reloads. The other filter selects are session-local; the new toggle matches that.
+- Showing a count or any indicator next to the button.
 
 ## Testing strategy
 
-This project has no automated test suite (`CLAUDE.md` explicitly says "No tests"; `package.json` exposes only `dev`, `build`, `start`, `lint`; no `*.test.*` files exist). The verification layers available, and used by this plan, are:
+This project has **no test suite** (`CLAUDE.md` → "No tests: this is a smoke test target, not a tested app. There is no test suite."). The verification layers available to this plan are therefore:
 
-- **Type check** — `pnpm exec tsc --noEmit` (runner: TypeScript compiler). Catches type regressions on the new state field and predicate.
-- **Lint** — `pnpm lint` (runner: ESLint via `eslint-config-next`). Catches unused vars, hook misuse, and a11y warnings on the new button.
-- **Production build** — `pnpm build` (runner: Next.js). Catches build-time errors the dev server may hide.
-- **Manual dev-server smoke** — `pnpm dev`, then exercise the feature in a browser at `http://localhost:3000`. This is the only behavioral verification available; per `CLAUDE.md` the project relies on it.
+- **Type check**: `pnpm exec tsc --noEmit` — run from the repo root. Must report no errors.
+- **Lint**: `pnpm lint` — runs ESLint via `eslint-config-next`. Must report no errors.
+- **Production build**: `pnpm build` — runs `next build`. Must complete without errors.
+- **Manual browser smoke**: `pnpm dev` (serves at `http://localhost:3000`). Drive the feature through the golden path and the documented edge cases below.
 
-Unit / integration / E2E layers are **skipped — not present in project**.
+Layers **skipped** for this plan, with reason:
+- **Unit tests** — skipped: project has no unit test harness configured (no Jest, Vitest, etc. in `package.json`).
+- **Integration tests** — skipped: same reason as unit tests.
+- **E2E tests** — skipped: project has no E2E harness configured (no Playwright, Cypress, etc. in `package.json`).
 
-Every production-changing task below verifies against these four layers. Per the TDD shape exception, steps 1–4 (write failing test → confirm failure → minimum impl → confirm pass) are replaced by the manual smoke + type-check + lint + build sequence, since no automated test runner exists. Each task still ends with a Conventional Commits message.
+Every feature task below verifies against the four available layers above. Because there is no automated test layer for new behavior, the manual browser smoke step is the **functional** verification; `tsc`/`lint`/`build` are correctness gates that catch regressions but do not exercise the behavior.
 
 ## Tasks
 
-### Task 1 — Add `filterToday` state and 24h predicate
+### Task 1 — Add `filterToday` state and 24h `createdAt` predicate
 
-**Files**
+Adds client filter state and extends the existing `filtered` derivation. No UI change in this task; the toggle button is added in Task 2. Verification at this stage is correctness-only (type/lint/build) because the feature is not user-reachable until Task 2 lands.
 
+Affected files:
 - Modify: `app/page.tsx`
 
-**Change detail**
+Steps:
 
-1. Add a new state hook immediately after the existing `searchQuery` declaration (currently `app/page.tsx:45`):
+1. Add a new `useState` declaration immediately after the existing `searchQuery` state on `app/page.tsx:45`:
 
    ```tsx
    const [filterToday, setFilterToday] = useState(false);
    ```
 
-   Place it on its own line, between the `searchQuery` and `sortBy` declarations so related filter state stays grouped.
+   Place the new line between the `searchQuery` state (line 45) and the `sortBy` state (line 46) so all filter state stays grouped together.
 
-2. Add a new predicate inside the existing `tasks.filter((t) => { … })` block at `app/page.tsx:131-139`. Insert it as the **last** predicate before `return true;`, so it composes with the existing filters and short-circuits correctly:
+2. Extend the `.filter(...)` callback inside the `filtered` derivation at `app/page.tsx:131-140`. Insert a new predicate **immediately before** the `return true;` line so the new check runs after status/category/priority/search:
 
    ```tsx
    if (filterToday) {
@@ -54,100 +59,98 @@ Every production-changing task below verifies against these four layers. Per the
    }
    ```
 
-   Do **not** hoist `cutoff` out of the filter callback — re-computing it per render is intentional so that `Date.now()` is fresh on every render. Do not memoize.
+   Use strict `<` (not `<=`) so a task created exactly 24h ago is excluded, matching the natural reading of "last 24 hours".
 
-3. Do not change the `sort` block, the `stats` block, or any other derivation.
+3. Run `pnpm exec tsc --noEmit`. Expected: exits 0, no diagnostics.
+4. Run `pnpm lint`. Expected: exits 0, no errors. (Warnings in pre-existing code are not a regression and may be ignored if present before the change; do not introduce new warnings.)
+5. Run `pnpm build`. Expected: completes with `Compiled successfully` and exits 0.
+6. Commit.
 
-**Verification (no test runner — manual layers only)**
+Note on the TDD shape: steps 1-2 (failing test) and step 4 (run, observe failure) are **skipped** for this task because the project has no test layer that could express this behavior — see the Testing strategy section above. The production change still ships with the four correctness verifications listed in steps 3-5.
 
-- Run `pnpm exec tsc --noEmit`; expect zero errors. `filterToday` is `boolean`, `setFilterToday` is `Dispatch<SetStateAction<boolean>>`, and `new Date(t.createdAt).getTime()` already type-checks (used at line 150).
-- Run `pnpm lint`; expect zero errors and zero warnings on `app/page.tsx`. In particular, `filterToday` must be read (it is — inside the predicate) so the `@typescript-eslint/no-unused-vars` rule does not fire.
-
-**Commit**
+Commit message (verbatim):
 
 ```
 feat(tasks): add filterToday state and 24h createdAt predicate
 ```
 
----
+### Task 2 — Add "Today" toggle button to the Filters bar
 
-### Task 2 — Add the **Today** toggle button to the Filters section
+Adds the user-reachable UI for the filter introduced in Task 1.
 
-**Files**
-
+Affected files:
 - Modify: `app/page.tsx`
 
-**Change detail**
+Steps:
 
-1. Locate the Filters block at `app/page.tsx:241-275`. The filters bar currently has a search `<input>` followed by a 4-column grid of four `<select>` controls (status, category, priority, sort).
-
-2. Insert a new flex row **between** the search `<input>` (closes at line 250) and the `<div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", … }}>` opener (line 251). The new row is a single-row flex container holding the Today toggle button, so that the existing 4-column grid layout is untouched:
+1. In the Filters card (the `<div className="glass" style={{ padding: "1.25rem" }}>` block starting at `app/page.tsx:242`), the inner column wrapper at `app/page.tsx:243` contains the search input (line 244-250) followed by the 4-column select grid (line 251-273). Insert a new row **between the search input and the select grid**, i.e. after the closing `</input>` self-close on line 250 and before the `<div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", ...`. The new row holds the Today toggle on its own line, left-aligned, so the existing 4-column grid is undisturbed:
 
    ```tsx
    <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
      <button
        type="button"
-       className={filterToday ? "btn btn-primary btn-sm" : "btn btn-ghost btn-sm"}
-       onClick={() => setFilterToday((v) => !v)}
+       className={`btn btn-sm ${filterToday ? "btn-primary" : "btn-ghost"}`}
        aria-pressed={filterToday}
-       title="Show only tasks created in the last 24 hours"
+       onClick={() => setFilterToday((v) => !v)}
      >
        Today
      </button>
    </div>
    ```
 
-   Rationale for class choice: the existing codebase uses `btn-primary` for the active/affirmative state (see Add/Update at line 229) and `btn-ghost` / `btn-muted` for inactive secondary controls (see Edit at line 359). Using `btn-primary` when `filterToday` is true makes the active state visually unambiguous and matches the design language already in use; no new CSS is needed.
+   Notes on the choices made here, so the implementer does not second-guess them:
+   - `type="button"` is required because the button lives inside the same form-ish container as other inputs; without it React/HTML would treat a stray click as form submit if a `<form>` is ever added.
+   - `btn-sm` matches the existing small-button utility used elsewhere in the page (`app/page.tsx:359, 362`).
+   - The `btn-primary` ↔ `btn-ghost` swap reuses utility classes that already exist in this project's stylesheet; do **not** introduce new CSS.
+   - `aria-pressed` reflects the toggle state for screen readers; it is the standard ARIA pattern for a two-state toggle and is the only accessibility attribute required here.
 
-3. Do **not** add the button into the 4-column grid — keeping it on its own row preserves the existing dropdown layout on narrow viewports and matches the issue body's "two or three files" expectation that this is a small, localized change (in practice, one file).
+2. Run `pnpm exec tsc --noEmit`. Expected: exits 0, no diagnostics.
+3. Run `pnpm lint`. Expected: exits 0, no errors.
+4. Run `pnpm build`. Expected: completes with `Compiled successfully` and exits 0.
+5. Commit. The manual browser smoke is deferred to Task 3 so it can cover both the state and the UI together.
 
-**Verification**
+Note on the TDD shape: same as Task 1 — automated test layers are skipped because the project has no test harness; the four correctness verifications above stand in.
 
-- Run `pnpm exec tsc --noEmit`; expect zero errors. `aria-pressed` accepts `boolean` per React's DOM types.
-- Run `pnpm lint`; expect zero errors and zero warnings. `type="button"` is set explicitly so the button cannot submit any ancestor form, which is also what every other `<button>` in this file effectively relies on.
-- Run `pnpm build`; expect a successful production build with no new warnings on `app/page.tsx`.
-
-**Commit**
+Commit message (verbatim):
 
 ```
 feat(tasks): add Today quick-filter toggle button to filters bar
 ```
 
----
+### Task 3 — Manual browser smoke
 
-### Task 3 — Manual dev-server smoke check
+Functional verification of the feature end-to-end. This task is a **non-feature task** (verification only, no production change) and therefore skips the TDD shape steps 1-4 entirely — no test is written and no production code is modified. If a defect is found, file or fix it as a follow-up; do not bundle a fix into this task.
 
-This task verifies feature behavior end-to-end. It is **non-testable through code** (no automated UI test layer exists in the project), so per the testing-strategy exception it skips TDD steps 1–4 and is the only behavioral gate.
+Affected files:
+- None (verification only).
 
-**Files**
+Steps:
 
-- None modified.
+1. Start the dev server: `pnpm dev`. Wait for the `Ready` line, then open `http://localhost:3000` in a browser.
+2. Verify the **Today** button renders in the Filters card, on its own row directly below the search input and above the four select dropdowns. Its initial visual state must be the ghost (inactive) style.
+3. **Golden path.** Create at least three tasks via the New Task form: leave the title as `"recent-a"`, `"recent-b"`, `"recent-c"`. All three will have `createdAt` set to "now" inside `handleSave` (see `app/page.tsx:69, 79`). Confirm all three appear in the list. Click **Today**. The button switches to the primary style and `aria-pressed` becomes `true` (verifiable via browser devtools Elements panel). All three tasks remain visible. Click **Today** again; the button returns to ghost style and the list is unchanged because all tasks are still recent.
+4. **Edge case — older task is filtered out.** With **Today** inactive, open browser devtools → Application → IndexedDB → `TodoApp` → `tasks`. Pick one of the seeded tasks and edit its `createdAt` to an ISO timestamp older than 24 hours (e.g. `"2025-01-01T00:00:00.000Z"`). Reload the page. The edited task appears in the list. Activate **Today**: the edited task disappears; the other tasks remain. Deactivate **Today**: the edited task reappears.
+5. **Edge case — combines with other filters.** Activate **Today**, then set the Status select to `Done`. The visible list must be the intersection (tasks created in the last 24h AND status `done`). Set Status back to `All Status`; toggle **Today** off. Confirm the list returns to the unfiltered set.
+6. **Edge case — empty state.** Activate **Today** when no task is younger than 24h (use the IndexedDB edit from step 4 on every task, or simply delete all tasks and reload). The list area should show the existing "No tasks match your filters." message from `app/page.tsx:285`, not the "No tasks yet…" message. Confirm.
+7. **Regression sweep.** Toggle each of the other filters (Status, Category, Priority, Sort) at least once with **Today** both on and off, and confirm no console errors appear in the browser devtools Console panel. Confirm the tasks Stats row at the top still reflects the **unfiltered** totals (the `stats` object at `app/page.tsx:153-158` reads from `tasks`, not `filtered`, and this must remain true).
+8. Stop the dev server. Record the result of every step above in the PR description for Task 3's commit, in a bulleted "Manual smoke results" section.
 
-**Steps**
+Commit message (verbatim):
 
-1. Start the dev server: `pnpm dev`. Open `http://localhost:3000`.
-2. If the task list is empty, add three tasks via the "New Task" form — title is enough; leave the other fields at their defaults. All three will have `createdAt` set to `new Date().toISOString()` at line 69, so they are all within the last 24 hours.
-3. **Golden path — toggle on:** Click the **Today** button. Expected:
-   - The button switches from the ghost style to the primary (gold) style.
-   - `aria-pressed` flips to `true` (verify via DevTools → Elements).
-   - The `{N} Tasks` heading and the rendered list still show all three tasks (they were just created).
-4. **Golden path — toggle off:** Click **Today** again. Expected: button returns to ghost style, `aria-pressed="false"`, list is unchanged.
-5. **Filter behavior — older task:** In DevTools → Application → IndexedDB → `TodoApp` → `tasks`, edit one task's `createdAt` to a timestamp older than 25 hours ago (e.g. `new Date(Date.now() - 25*60*60*1000).toISOString()`), then reload the page. Click **Today**. Expected: that task disappears from the list; the heading drops to `2 Tasks`. Toggle off; expected: it reappears.
-6. **Composability:** With **Today** still active, also set the Status dropdown to `Done`. Expected: list shows only tasks that are both done **and** created in the last 24 hours. Reset status to `All Status`.
-7. **Empty composability:** With **Today** active, set Status to `Done` when no done-tasks-from-today exist. Expected: the empty-state copy "No tasks match your filters." renders (current behavior at `app/page.tsx:285`); no new empty-state copy is needed.
-8. **No regressions:** Toggle **Today** off, then exercise the search box, the three other filter dropdowns, the sort dropdown, the Add / Edit / Delete actions, and the status-cycle circle. Expected: all behave identically to before this change.
+```
+chore(tasks): manual smoke verification of Today quick-filter
+```
 
-If any of steps 3–8 fail, stop and fix the failing task before committing.
+(This commit will either be empty or include only the PR description update if changes were made elsewhere. If no files were modified, do not create the commit — the manual smoke results belong in the PR description, not in a git commit. In that case, skip the commit step and proceed directly to opening the pull request.)
 
-**Commit**
+## Review checklist for the implementer
 
-No commit for this task — it is verification only. If a fix is required, fold it into a follow-up commit on Task 1 or Task 2 with a CC message of the form `fix(tasks): <what was wrong>`.
+Before opening the PR, the implementer must confirm:
 
----
-
-## Out of scope
-
-- Changing `Task.createdAt`'s shape, indexing it in IndexedDB, or persisting filter state across reloads.
-- Adding "Yesterday", "This week", or other date-range presets — the issue scopes the feature to a single 24-hour quick filter.
-- Restyling the existing filter dropdowns or introducing a shared `<ToggleChip>` component. Three similar lines of inline styles would be a premature abstraction here; revisit if a second or third toggle is added later.
-- Adding an automated test suite for this project. `CLAUDE.md` explicitly designates this app as a smoke-test target with no tests; introducing Jest / Vitest / Playwright is out of scope for this issue.
+- [ ] `app/page.tsx` is the only file modified across all three tasks.
+- [ ] `filterToday` state is declared with `useState(false)` and is grouped with the other filter states.
+- [ ] The 24h predicate uses `Date.now() - 24 * 60 * 60 * 1000` and strict `<` against `new Date(t.createdAt).getTime()`.
+- [ ] The Today button uses `aria-pressed`, `type="button"`, and swaps between `btn-primary` and `btn-ghost`.
+- [ ] No new CSS, no new dependencies, no changes to `app/types.ts` or `app/db.ts`.
+- [ ] `pnpm exec tsc --noEmit`, `pnpm lint`, `pnpm build` all exit clean on the final commit.
+- [ ] Manual smoke steps 2-7 are recorded in the PR description.
