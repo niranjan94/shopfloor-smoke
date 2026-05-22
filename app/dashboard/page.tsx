@@ -33,11 +33,17 @@ export default function Dashboard() {
   const highPri = tasks.filter((t) => t.priority === "high" && t.status !== "done");
   const today = tasks.filter((t) => t.dueDate && new Date(t.dueDate + "T00:00:00").toDateString() === new Date().toDateString());
 
+  const dayAgo = Date.now() - 24 * 60 * 60 * 1000;
+  const completedToday = tasks.filter(
+    (t) => t.status === "done" && new Date(t.completedAt ?? t.updatedAt).getTime() >= dayAgo
+  ).length;
+
   const statItems = [
-    { label: "Total",     value: total,    color: "var(--accent-gold)" },
-    { label: "Completed", value: done,     color: "#6ee7b7" },
-    { label: "Rate",      value: `${rate}%`, color: "#93c5fd" },
-    { label: "Overdue",   value: overdue.length, color: "#fca5a5" },
+    { label: "Total",           value: total,    color: "var(--accent-gold)" },
+    { label: "Completed",       value: done,     color: "#6ee7b7" },
+    { label: "Completed Today", value: completedToday, color: "#6ee7b7" },
+    { label: "Rate",            value: `${rate}%`, color: "#93c5fd" },
+    { label: "Overdue",         value: overdue.length, color: "#fca5a5" },
   ];
 
   const statusBars = [
@@ -57,7 +63,7 @@ export default function Dashboard() {
         </div>
 
         {/* Stat cards */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "1rem" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: "1rem" }}>
           {statItems.map((s) => (
             <div key={s.label} className="stat-card">
               <div className="stat-value" style={{ color: s.color }}>{s.value}</div>
