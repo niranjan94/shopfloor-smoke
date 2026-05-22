@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Task, Category } from "./types";
+import { Task, Category, Subtask } from "./types";
 import { db } from "./db";
 import { MainLayout } from "./components/MainLayout";
 
@@ -54,6 +54,7 @@ export default function Home() {
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState<"created" | "dueDate" | "priority">("created");
   const [loading, setLoading] = useState(true);
+  const [subtaskDraft, setSubtaskDraft] = useState<Record<string, string>>({});
 
   useEffect(() => { loadData(); }, []);
 
@@ -137,6 +138,73 @@ export default function Home() {
     try {
       await db.updateTask(updated);
       setTasks((prev) => prev.map((t) => (t.id === task.id ? updated : t)));
+    } catch (e) { console.error(e); }
+  }
+
+  async function addSubtask(parentId: string): Promise<void> {
+    const title = (subtaskDraft[parentId] ?? "").trim();
+    if (!title) return;
+    const parent = tasks.find((t) => t.id === parentId);
+    if (!parent) return;
+    const now = new Date().toISOString();
+    const newSub: Subtask = {
+      id: Date.now().toString(),
+      title,
+      done: false,
+      createdAt: now,
+    };
+    const withSub: Task = { ...parent, subtasks: [...parent.subtasks, newSub] };
+    const nextStatus = rollupStatus(withSub.status, withSub);
+    const updated: Task = {
+      ...withSub,
+      status: nextStatus,
+      completedAt: nextStatus === "done" ? withSub.completedAt : undefined,
+      updatedAt: now,
+    };
+    try {
+      await db.updateTask(updated);
+      setTasks((prev) => prev.map((t) => (t.id === parentId ? updated : t)));
+      setSubtaskDraft((prev) => ({ ...prev, [parentId]: "" }));
+    } catch (e) { console.error(e); }
+  }
+
+  async function toggleSubtask(parentId: string, subtaskId: string): Promise<void> {
+    const parent = tasks.find((t) => t.id === parentId);
+    if (!parent) return;
+    const now = new Date().toISOString();
+    const nextSubs = parent.subtasks.map((s) =>
+      s.id === subtaskId ? { ...s, done: !s.done } : s,
+    );
+    const withSubs: Task = { ...parent, subtasks: nextSubs };
+    const nextStatus = rollupStatus(withSubs.status, withSubs);
+    const updated: Task = {
+      ...withSubs,
+      status: nextStatus,
+      completedAt: nextStatus === "done" ? withSubs.completedAt : undefined,
+      updatedAt: now,
+    };
+    try {
+      await db.updateTask(updated);
+      setTasks((prev) => prev.map((t) => (t.id === parentId ? updated : t)));
+    } catch (e) { console.error(e); }
+  }
+
+  async function deleteSubtask(parentId: string, subtaskId: string): Promise<void> {
+    const parent = tasks.find((t) => t.id === parentId);
+    if (!parent) return;
+    const now = new Date().toISOString();
+    const nextSubs = parent.subtasks.filter((s) => s.id !== subtaskId);
+    const withSubs: Task = { ...parent, subtasks: nextSubs };
+    const nextStatus = rollupStatus(withSubs.status, withSubs);
+    const updated: Task = {
+      ...withSubs,
+      status: nextStatus,
+      completedAt: nextStatus === "done" ? withSubs.completedAt : undefined,
+      updatedAt: now,
+    };
+    try {
+      await db.updateTask(updated);
+      setTasks((prev) => prev.map((t) => (t.id === parentId ? updated : t)));
     } catch (e) { console.error(e); }
   }
 
