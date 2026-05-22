@@ -319,7 +319,20 @@ export default function Home() {
         <div>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.875rem" }}>
             <h2>{filtered.length} {filtered.length === 1 ? "Task" : "Tasks"}</h2>
+            <button className="btn btn-ghost btn-sm" onClick={toggleBulkMode}>
+              {bulkMode ? "Cancel" : "Select"}
+            </button>
           </div>
+
+          {bulkMode && (
+            <BulkSelectBar
+              selectedCount={selectedIds.size}
+              allVisibleSelected={filtered.length > 0 && filtered.every((t) => selectedIds.has(t.id))}
+              onSelectAll={selectAllVisible}
+              onClearSelection={clearSelection}
+              onDeleteSelected={handleBulkDelete}
+            />
+          )}
 
           {filtered.length === 0 ? (
             <div className="card" style={{ textAlign: "center", padding: "3rem", color: "var(--text-muted)" }}>
@@ -334,6 +347,21 @@ export default function Home() {
                   style={{ animation: `slideInUp 350ms ease-out ${idx * 30}ms both` }}
                 >
                   <div style={{ display: "flex", alignItems: "flex-start", gap: "0.875rem" }}>
+                    {bulkMode && (
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.has(task.id)}
+                        onChange={() => toggleSelected(task.id)}
+                        aria-label={`Select task: ${task.title}`}
+                        style={{
+                          flexShrink: 0,
+                          marginTop: "4px",
+                          width: 18,
+                          height: 18,
+                          cursor: "pointer",
+                        }}
+                      />
+                    )}
                     {/* Status toggle */}
                     <button
                       onClick={() => cycleStatus(task)}
