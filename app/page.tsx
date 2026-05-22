@@ -103,11 +103,8 @@ export default function Home() {
   }
 
   function toggleBulkMode() {
-    setBulkMode((prev) => {
-      if (prev) setSelectedIds(new Set());
-      else setSelectedIds(new Set());
-      return !prev;
-    });
+    setSelectedIds(new Set());
+    setBulkMode((prev) => !prev);
   }
 
   function toggleSelected(id: string) {
