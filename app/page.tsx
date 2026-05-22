@@ -141,71 +141,49 @@ export default function Home() {
     } catch (e) { console.error(e); }
   }
 
+  async function persistSubtasks(parent: Task, nextSubs: Subtask[]): Promise<void> {
+    const withSubs: Task = { ...parent, subtasks: nextSubs };
+    const nextStatus = rollupStatus(withSubs.status, withSubs);
+    const updated: Task = {
+      ...withSubs,
+      status: nextStatus,
+      completedAt: nextStatus === "done" ? withSubs.completedAt : undefined,
+      updatedAt: new Date().toISOString(),
+    };
+    try {
+      await db.updateTask(updated);
+      setTasks((prev) => prev.map((t) => (t.id === parent.id ? updated : t)));
+    } catch (e) { console.error(e); }
+  }
+
   async function addSubtask(parentId: string): Promise<void> {
     const title = (subtaskDraft[parentId] ?? "").trim();
     if (!title) return;
     const parent = tasks.find((t) => t.id === parentId);
     if (!parent) return;
-    const now = new Date().toISOString();
     const newSub: Subtask = {
       id: Date.now().toString(),
       title,
       done: false,
-      createdAt: now,
+      createdAt: new Date().toISOString(),
     };
-    const withSub: Task = { ...parent, subtasks: [...parent.subtasks, newSub] };
-    const nextStatus = rollupStatus(withSub.status, withSub);
-    const updated: Task = {
-      ...withSub,
-      status: nextStatus,
-      completedAt: nextStatus === "done" ? withSub.completedAt : undefined,
-      updatedAt: now,
-    };
-    try {
-      await db.updateTask(updated);
-      setTasks((prev) => prev.map((t) => (t.id === parentId ? updated : t)));
-      setSubtaskDraft((prev) => ({ ...prev, [parentId]: "" }));
-    } catch (e) { console.error(e); }
+    await persistSubtasks(parent, [...parent.subtasks, newSub]);
+    setSubtaskDraft((prev) => ({ ...prev, [parentId]: "" }));
   }
 
   async function toggleSubtask(parentId: string, subtaskId: string): Promise<void> {
     const parent = tasks.find((t) => t.id === parentId);
     if (!parent) return;
-    const now = new Date().toISOString();
     const nextSubs = parent.subtasks.map((s) =>
       s.id === subtaskId ? { ...s, done: !s.done } : s,
     );
-    const withSubs: Task = { ...parent, subtasks: nextSubs };
-    const nextStatus = rollupStatus(withSubs.status, withSubs);
-    const updated: Task = {
-      ...withSubs,
-      status: nextStatus,
-      completedAt: nextStatus === "done" ? withSubs.completedAt : undefined,
-      updatedAt: now,
-    };
-    try {
-      await db.updateTask(updated);
-      setTasks((prev) => prev.map((t) => (t.id === parentId ? updated : t)));
-    } catch (e) { console.error(e); }
+    await persistSubtasks(parent, nextSubs);
   }
 
   async function deleteSubtask(parentId: string, subtaskId: string): Promise<void> {
     const parent = tasks.find((t) => t.id === parentId);
     if (!parent) return;
-    const now = new Date().toISOString();
-    const nextSubs = parent.subtasks.filter((s) => s.id !== subtaskId);
-    const withSubs: Task = { ...parent, subtasks: nextSubs };
-    const nextStatus = rollupStatus(withSubs.status, withSubs);
-    const updated: Task = {
-      ...withSubs,
-      status: nextStatus,
-      completedAt: nextStatus === "done" ? withSubs.completedAt : undefined,
-      updatedAt: now,
-    };
-    try {
-      await db.updateTask(updated);
-      setTasks((prev) => prev.map((t) => (t.id === parentId ? updated : t)));
-    } catch (e) { console.error(e); }
+    await persistSubtasks(parent, parent.subtasks.filter((s) => s.id !== subtaskId));
   }
 
   const filtered = tasks
