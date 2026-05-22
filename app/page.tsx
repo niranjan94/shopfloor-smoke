@@ -362,7 +362,11 @@ export default function Home() {
                     {/* Status toggle */}
                     <button
                       onClick={() => cycleStatus(task)}
-                      title={`Status: ${statusLabel(task.status)} — click to advance`}
+                      title={
+                        canBeDone(task)
+                          ? `Status: ${statusLabel(task.status)} — click to advance`
+                          : `Status: ${statusLabel(task.status)} — complete all subtasks to mark done`
+                      }
                       style={{
                         flexShrink: 0,
                         marginTop: "2px",
