@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Task, Category } from "./types";
 import { db } from "./db";
 import { MainLayout } from "./components/MainLayout";
+import { BulkSelectBar } from "./components/BulkSelectBar";
 
 const DEFAULT_CATEGORIES: Category[] = [
   { id: "work",     name: "Work",     color: "bg-blue-100 text-blue-900" },
@@ -45,6 +46,8 @@ export default function Home() {
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState<"created" | "dueDate" | "priority">("created");
   const [loading, setLoading] = useState(true);
+  const [bulkMode, setBulkMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   useEffect(() => { loadData(); }, []);
 
@@ -97,6 +100,35 @@ export default function Home() {
       await db.deleteTask(id);
       setTasks((prev) => prev.filter((t) => t.id !== id));
     } catch (e) { console.error(e); }
+  }
+
+  function toggleBulkMode() {
+    setBulkMode((prev) => {
+      if (prev) setSelectedIds(new Set());
+      else setSelectedIds(new Set());
+      return !prev;
+    });
+  }
+
+  function toggleSelected(id: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  async function handleBulkDelete() {
+    if (selectedIds.size === 0) return;
+    const ids = Array.from(selectedIds);
+    try {
+      await Promise.all(ids.map((id) => db.deleteTask(id)));
+      setTasks((prev) => prev.filter((t) => !selectedIds.has(t.id)));
+      setSelectedIds(new Set());
+    } catch (e) {
+      console.error(e);
+    }
   }
 
   function handleEdit(task: Task) {
@@ -278,6 +310,12 @@ export default function Home() {
         <div>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.875rem" }}>
             <h2>{filtered.length} {filtered.length === 1 ? "Task" : "Tasks"}</h2>
+            <BulkSelectBar
+              bulkMode={bulkMode}
+              selectedCount={selectedIds.size}
+              onToggleMode={toggleBulkMode}
+              onDeleteSelected={handleBulkDelete}
+            />
           </div>
 
           {filtered.length === 0 ? (
@@ -293,6 +331,15 @@ export default function Home() {
                   style={{ animation: `slideInUp 350ms ease-out ${idx * 30}ms both` }}
                 >
                   <div style={{ display: "flex", alignItems: "flex-start", gap: "0.875rem" }}>
+                    {bulkMode && (
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.has(task.id)}
+                        onChange={() => toggleSelected(task.id)}
+                        style={{ flexShrink: 0, marginTop: "4px", width: 18, height: 18, cursor: "pointer" }}
+                        aria-label={`Select ${task.title}`}
+                      />
+                    )}
                     {/* Status toggle */}
                     <button
                       onClick={() => cycleStatus(task)}
