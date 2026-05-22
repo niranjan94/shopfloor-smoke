@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Task, Category } from "./types";
 import { db } from "./db";
 import { MainLayout } from "./components/MainLayout";
+import { BulkSelectBar } from "./components/BulkSelectBar";
 
 const DEFAULT_CATEGORIES: Category[] = [
   { id: "work",     name: "Work",     color: "bg-blue-100 text-blue-900" },
@@ -45,6 +46,8 @@ export default function Home() {
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState<"created" | "dueDate" | "priority">("created");
   const [loading, setLoading] = useState(true);
+  const [bulkMode, setBulkMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   useEffect(() => { loadData(); }, []);
 
@@ -97,6 +100,44 @@ export default function Home() {
       await db.deleteTask(id);
       setTasks((prev) => prev.filter((t) => t.id !== id));
     } catch (e) { console.error(e); }
+  }
+
+  function toggleBulkMode() {
+    setBulkMode((b) => {
+      if (b) setSelectedIds(new Set());
+      return !b;
+    });
+  }
+
+  function toggleSelected(id: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function selectAllVisible() {
+    setSelectedIds(new Set(filtered.map((t) => t.id)));
+  }
+
+  function clearSelection() {
+    setSelectedIds(new Set());
+  }
+
+  async function handleBulkDelete() {
+    const ids = Array.from(selectedIds);
+    if (ids.length === 0) return;
+    for (const id of ids) {
+      try {
+        await db.deleteTask(id);
+      } catch (e) {
+        console.error(e);
+      }
+    }
+    setTasks((prev) => prev.filter((t) => !selectedIds.has(t.id)));
+    setSelectedIds(new Set());
   }
 
   function handleEdit(task: Task) {
