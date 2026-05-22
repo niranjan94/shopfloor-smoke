@@ -79,6 +79,7 @@ export default function Home() {
       createdAt: existing?.createdAt ?? now,
       updatedAt: now,
       completedAt: existing?.completedAt,
+      subtasks: existing?.subtasks ?? [],
     };
     try {
       if (editingId) {
