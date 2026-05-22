@@ -27,7 +27,7 @@ export default function Dashboard() {
   const rate = total > 0 ? Math.round((done / total) * 100) : 0;
   const dayAgo = Date.now() - 24 * 60 * 60 * 1000;
   const doneToday = tasks.filter(
-    (t) => t.status === "done" && new Date(t.updatedAt).getTime() >= dayAgo
+    (t) => t.status === "done" && t.completedAt && new Date(t.completedAt).getTime() >= dayAgo
   ).length;
 
   const overdue = tasks.filter(
