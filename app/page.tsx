@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Task, Category } from "./types";
+import { Task, Subtask, Category } from "./types";
 import { db } from "./db";
 import { MainLayout } from "./components/MainLayout";
 
@@ -49,6 +49,7 @@ export default function Home() {
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState<"created" | "dueDate" | "priority">("created");
   const [loading, setLoading] = useState(true);
+  const [subtaskDrafts, setSubtaskDrafts] = useState<Record<string, string>>({});
 
   useEffect(() => { loadData(); }, []);
 
@@ -134,6 +135,61 @@ export default function Home() {
     try {
       await db.updateTask(updated);
       setTasks((prev) => prev.map((t) => (t.id === task.id ? updated : t)));
+    } catch (e) { console.error(e); }
+  }
+
+  async function addSubtask(parent: Task, title: string) {
+    const trimmed = title.trim();
+    if (!trimmed) return;
+    const now = new Date().toISOString();
+    const newSub: Subtask = {
+      id: crypto.randomUUID(),
+      title: trimmed,
+      done: false,
+      createdAt: now,
+    };
+    const updated: Task = {
+      ...parent,
+      subtasks: [...parent.subtasks, newSub],
+      updatedAt: now,
+    };
+    try {
+      await db.updateTask(updated);
+      setTasks((prev) => prev.map((t) => (t.id === parent.id ? updated : t)));
+      setSubtaskDrafts((prev) => ({ ...prev, [parent.id]: "" }));
+    } catch (e) { console.error(e); }
+  }
+
+  async function toggleSubtask(parent: Task, subtaskId: string) {
+    const now = new Date().toISOString();
+    const nextSubtasks = parent.subtasks.map((s) =>
+      s.id === subtaskId ? { ...s, done: !s.done } : s
+    );
+    const allDone = nextSubtasks.length > 0 && nextSubtasks.every((s) => s.done);
+    const demote = parent.status === "done" && !allDone;
+    const updated: Task = {
+      ...parent,
+      subtasks: nextSubtasks,
+      status: demote ? "in-progress" : parent.status,
+      completedAt: demote ? undefined : parent.completedAt,
+      updatedAt: now,
+    };
+    try {
+      await db.updateTask(updated);
+      setTasks((prev) => prev.map((t) => (t.id === parent.id ? updated : t)));
+    } catch (e) { console.error(e); }
+  }
+
+  async function deleteSubtask(parent: Task, subtaskId: string) {
+    const now = new Date().toISOString();
+    const updated: Task = {
+      ...parent,
+      subtasks: parent.subtasks.filter((s) => s.id !== subtaskId),
+      updatedAt: now,
+    };
+    try {
+      await db.updateTask(updated);
+      setTasks((prev) => prev.map((t) => (t.id === parent.id ? updated : t)));
     } catch (e) { console.error(e); }
   }
 
