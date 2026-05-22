@@ -25,6 +25,10 @@ export default function Dashboard() {
   const inProgress = tasks.filter((t) => t.status === "in-progress").length;
   const todo = tasks.filter((t) => t.status === "todo").length;
   const rate = total > 0 ? Math.round((done / total) * 100) : 0;
+  const dayAgo = Date.now() - 24 * 60 * 60 * 1000;
+  const doneToday = tasks.filter(
+    (t) => t.status === "done" && new Date(t.updatedAt).getTime() >= dayAgo
+  ).length;
 
   const overdue = tasks.filter(
     (t) => t.status !== "done" && t.dueDate && new Date(t.dueDate) < new Date()
@@ -34,10 +38,11 @@ export default function Dashboard() {
   const today = tasks.filter((t) => t.dueDate && new Date(t.dueDate + "T00:00:00").toDateString() === new Date().toDateString());
 
   const statItems = [
-    { label: "Total",     value: total,    color: "var(--accent-gold)" },
-    { label: "Completed", value: done,     color: "#6ee7b7" },
-    { label: "Rate",      value: `${rate}%`, color: "#93c5fd" },
-    { label: "Overdue",   value: overdue.length, color: "#fca5a5" },
+    { label: "Total",      value: total,    color: "var(--accent-gold)" },
+    { label: "Completed",  value: done,     color: "#6ee7b7" },
+    { label: "Done Today", value: doneToday, color: "#a7f3d0" },
+    { label: "Rate",       value: `${rate}%`, color: "#93c5fd" },
+    { label: "Overdue",    value: overdue.length, color: "#fca5a5" },
   ];
 
   const statusBars = [
@@ -57,7 +62,7 @@ export default function Dashboard() {
         </div>
 
         {/* Stat cards */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "1rem" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: "1rem" }}>
           {statItems.map((s) => (
             <div key={s.label} className="stat-card">
               <div className="stat-value" style={{ color: s.color }}>{s.value}</div>
