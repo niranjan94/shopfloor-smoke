@@ -33,9 +33,9 @@ export default function Dashboard() {
   const highPri = tasks.filter((t) => t.priority === "high" && t.status !== "done");
   const today = tasks.filter((t) => t.dueDate && new Date(t.dueDate + "T00:00:00").toDateString() === new Date().toDateString());
 
-  const dayAgo = Date.now() - 24 * 60 * 60 * 1000;
+  const todayStr = new Date().toDateString();
   const completedToday = tasks.filter(
-    (t) => t.status === "done" && new Date(t.completedAt ?? t.updatedAt).getTime() >= dayAgo
+    (t) => t.status === "done" && new Date(t.completedAt ?? t.updatedAt).toDateString() === todayStr
   ).length;
 
   const statItems = [
