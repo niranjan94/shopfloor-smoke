@@ -105,6 +105,16 @@ export default function Home() {
     } catch (e) { console.error(e); }
   }
 
+  async function handleBulkDelete() {
+    const ids = Array.from(selectedIds);
+    if (ids.length === 0) return;
+    try {
+      await Promise.all(ids.map((id) => db.deleteTask(id)));
+      setTasks((prev) => prev.filter((t) => !selectedIds.has(t.id)));
+      clearSelection();
+    } catch (e) { console.error(e); }
+  }
+
   function handleEdit(task: Task) {
     setTitle(task.title);
     setDescription(task.description || "");
@@ -282,8 +292,32 @@ export default function Home() {
 
         {/* Task list */}
         <div>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.875rem" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.875rem", gap: "0.75rem", flexWrap: "wrap" }}>
             <h2>{filtered.length} {filtered.length === 1 ? "Task" : "Tasks"}</h2>
+            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+              {bulkSelectMode && (
+                <>
+                  <span style={{ color: "var(--text-muted)", fontSize: "0.875rem" }}>
+                    {selectedIds.size} selected
+                  </span>
+                  <button
+                    className="btn btn-danger btn-sm"
+                    onClick={handleBulkDelete}
+                    disabled={selectedIds.size === 0}
+                  >
+                    Delete selected
+                  </button>
+                  <button className="btn btn-muted btn-sm" onClick={toggleBulkSelectMode}>
+                    Cancel
+                  </button>
+                </>
+              )}
+              {!bulkSelectMode && (
+                <button className="btn btn-ghost btn-sm" onClick={toggleBulkSelectMode}>
+                  Bulk select
+                </button>
+              )}
+            </div>
           </div>
 
           {filtered.length === 0 ? (
