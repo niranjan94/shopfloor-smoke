@@ -30,6 +30,10 @@ function statusLabel(s: string) {
   return "Done";
 }
 
+function allSubtasksDone(task: Task): boolean {
+  return task.subtasks.every((s) => s.done);
+}
+
 export default function Home() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [categories, setCategories] = useState<Category[]>(DEFAULT_CATEGORIES);
@@ -79,6 +83,7 @@ export default function Home() {
       createdAt: existing?.createdAt ?? now,
       updatedAt: now,
       completedAt: existing?.completedAt,
+      subtasks: existing?.subtasks ?? [],
     };
     try {
       if (editingId) {
@@ -114,17 +119,25 @@ export default function Home() {
   }
 
   async function cycleStatus(task: Task) {
-    const next: Record<string, Task["status"]> = { todo: "in-progress", "in-progress": "done", done: "todo" };
+    const order: Task["status"][] = ["todo", "in-progress", "done"];
+    const i = order.indexOf(task.status);
+    let nextStatus = order[(i + 1) % order.length];
+    if (nextStatus === "done" && !allSubtasksDone(task)) {
+      nextStatus = "todo";
+    }
+    const now = new Date().toISOString();
     const updated: Task = {
       ...task,
-      status: next[task.status],
-      completedAt: next[task.status] === "done" ? new Date().toISOString() : undefined,
-      updatedAt: new Date().toISOString(),
+      status: nextStatus,
+      completedAt: nextStatus === "done" ? now : undefined,
+      updatedAt: now,
     };
     try {
       await db.updateTask(updated);
       setTasks((prev) => prev.map((t) => (t.id === task.id ? updated : t)));
-    } catch (e) { console.error(e); }
+    } catch (e) {
+      console.error(e);
+    }
   }
 
   const filtered = tasks
