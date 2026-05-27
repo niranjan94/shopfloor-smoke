@@ -30,3 +30,5 @@ Open [http://localhost:3000](http://localhost:3000).
 | UI       | React 19 + Tailwind CSS 4 |
 | Storage  | IndexedDB (browser) |
 | Language | TypeScript 5        |
+
+<!-- last-smoke: 2026-05-27 -->
