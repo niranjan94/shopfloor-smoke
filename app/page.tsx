@@ -150,10 +150,16 @@ export default function Home() {
       title,
       done: false,
     };
+    const now = new Date().toISOString();
+    // A new subtask is always open, so appending it to a done parent would
+    // violate "done implies all subtasks done". Demote the parent in lock-step.
+    const demote = target.status === "done";
     const updated: Task = {
       ...target,
       subtasks: [...target.subtasks, subtask],
-      updatedAt: new Date().toISOString(),
+      status: demote ? "in-progress" : target.status,
+      completedAt: demote ? undefined : target.completedAt,
+      updatedAt: now,
     };
     try {
       await db.updateTask(updated);
@@ -378,7 +384,7 @@ export default function Home() {
                     <button
                       onClick={() => cycleStatus(task)}
                       title={
-                        task.subtasks.length > 0 && !allSubtasksDone(task) && task.status === "in-progress"
+                        task.status === "in-progress" && !allSubtasksDone(task)
                           ? `Status: ${statusLabel(task.status)} — click to advance (subtasks incomplete)`
                           : `Status: ${statusLabel(task.status)} — click to advance`
                       }
