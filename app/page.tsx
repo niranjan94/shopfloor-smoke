@@ -377,7 +377,11 @@ export default function Home() {
                     {/* Status toggle */}
                     <button
                       onClick={() => cycleStatus(task)}
-                      title={`Status: ${statusLabel(task.status)} — click to advance`}
+                      title={
+                        task.subtasks.length > 0 && !allSubtasksDone(task) && task.status === "in-progress"
+                          ? `Status: ${statusLabel(task.status)} — click to advance (subtasks incomplete)`
+                          : `Status: ${statusLabel(task.status)} — click to advance`
+                      }
                       style={{
                         flexShrink: 0,
                         marginTop: "2px",
@@ -433,6 +437,12 @@ export default function Home() {
                           </span>
                         )}
                       </div>
+                      <SubtaskList
+                        task={task}
+                        onAdd={(title) => addSubtask(task.id, title)}
+                        onToggle={(subtaskId) => toggleSubtask(task.id, subtaskId)}
+                        onDelete={(subtaskId) => deleteSubtask(task.id, subtaskId)}
+                      />
                     </div>
 
                     {/* Actions — always visible */}
@@ -452,5 +462,105 @@ export default function Home() {
         </div>
       </div>
     </MainLayout>
+  );
+}
+
+function SubtaskList(props: {
+  task: Task;
+  onAdd: (title: string) => void;
+  onToggle: (subtaskId: string) => void;
+  onDelete: (subtaskId: string) => void;
+}) {
+  const { task, onAdd, onToggle, onDelete } = props;
+  const [draft, setDraft] = useState("");
+
+  function submit() {
+    const value = draft.trim();
+    if (!value) return;
+    onAdd(value);
+    setDraft("");
+  }
+
+  return (
+    <div
+      style={{
+        marginTop: "0.75rem",
+        marginLeft: "2.25rem",
+        display: "flex",
+        flexDirection: "column",
+        gap: "0.375rem",
+      }}
+    >
+      {task.subtasks.map((s) => (
+        <div
+          key={s.id}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "0.5rem",
+          }}
+        >
+          <button
+            type="button"
+            onClick={() => onToggle(s.id)}
+            title={s.done ? "Mark subtask incomplete" : "Mark subtask done"}
+            style={{
+              flexShrink: 0,
+              width: 16,
+              height: 16,
+              borderRadius: "50%",
+              border: `2px solid ${s.done ? "var(--accent-gold)" : "var(--border-hover)"}`,
+              background: s.done ? "var(--accent-gold)" : "transparent",
+              color: s.done ? "#0c1524" : "transparent",
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: "0.6rem",
+              fontWeight: 700,
+              lineHeight: 1,
+            }}
+          >
+            {s.done ? "✓" : ""}
+          </button>
+          <span
+            style={{
+              flex: 1,
+              fontSize: "0.8125rem",
+              color: s.done ? "var(--text-muted)" : "var(--text-primary)",
+              textDecoration: s.done ? "line-through" : "none",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {s.title}
+          </span>
+          <button
+            type="button"
+            className="btn btn-ghost btn-sm"
+            onClick={() => onDelete(s.id)}
+            title="Delete subtask"
+            style={{ padding: "0 0.5rem" }}
+          >
+            ×
+          </button>
+        </div>
+      ))}
+      <input
+        className="input"
+        type="text"
+        placeholder="Add subtask…"
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            submit();
+          }
+        }}
+        style={{ fontSize: "0.8125rem" }}
+      />
+    </div>
   );
 }
