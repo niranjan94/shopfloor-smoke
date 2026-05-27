@@ -1,7 +1,7 @@
 import { Task, Category } from "./types";
 
 const DB_NAME = "TodoApp";
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 const TASKS_STORE = "tasks";
 const CATEGORIES_STORE = "categories";
 
@@ -23,7 +23,10 @@ function getDB(): Promise<IDBDatabase> {
     };
 
     request.onupgradeneeded = (event) => {
-      const db = (event.target as IDBOpenDBRequest).result;
+      const target = event.target as IDBOpenDBRequest;
+      const db = target.result;
+      const tx = target.transaction!;
+
       if (!db.objectStoreNames.contains(TASKS_STORE)) {
         const taskStore = db.createObjectStore(TASKS_STORE, { keyPath: "id" });
         taskStore.createIndex("category", "category", { unique: false });
@@ -33,6 +36,20 @@ function getDB(): Promise<IDBDatabase> {
       }
       if (!db.objectStoreNames.contains(CATEGORIES_STORE)) {
         db.createObjectStore(CATEGORIES_STORE, { keyPath: "id" });
+      }
+
+      if (event.oldVersion < 2) {
+        const store = tx.objectStore(TASKS_STORE);
+        const cursorReq = store.openCursor();
+        cursorReq.onsuccess = () => {
+          const cursor = cursorReq.result;
+          if (!cursor) return;
+          const row = cursor.value as Task;
+          if (!Array.isArray(row.subtasks)) {
+            cursor.update({ ...row, subtasks: [] });
+          }
+          cursor.continue();
+        };
       }
     };
   });
