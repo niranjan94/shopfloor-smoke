@@ -99,6 +99,19 @@ export default function Home() {
     } catch (e) { console.error(e); }
   }
 
+  async function handleClearCompleted() {
+    const completed = tasks.filter((t) => t.status === "done");
+    if (completed.length === 0) return;
+    if (!window.confirm(`Delete ${completed.length} completed task(s)? This cannot be undone.`)) return;
+    try {
+      for (const t of completed) {
+        await db.deleteTask(t.id);
+      }
+      const completedIds = new Set(completed.map((t) => t.id));
+      setTasks((prev) => prev.filter((t) => !completedIds.has(t.id)));
+    } catch (e) { console.error(e); }
+  }
+
   function handleEdit(task: Task) {
     setTitle(task.title);
     setDescription(task.description || "");
@@ -278,6 +291,11 @@ export default function Home() {
         <div>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.875rem" }}>
             <h2>{filtered.length} {filtered.length === 1 ? "Task" : "Tasks"}</h2>
+            {stats.done > 0 && (
+              <button className="btn btn-danger btn-sm" onClick={handleClearCompleted}>
+                Clear completed ({stats.done})
+              </button>
+            )}
           </div>
 
           {filtered.length === 0 ? (
