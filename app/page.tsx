@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Task, Category } from "./types";
+import { Task, Category, Subtask } from "./types";
 import { db } from "./db";
 import { MainLayout } from "./components/MainLayout";
 
@@ -135,6 +135,74 @@ export default function Home() {
     try {
       await db.updateTask(updated);
       setTasks((prev) => prev.map((t) => (t.id === task.id ? updated : t)));
+    } catch (e) {
+      console.error(e);
+    }
+  }
+
+  async function addSubtask(taskId: string, rawTitle: string): Promise<void> {
+    const title = rawTitle.trim();
+    if (!title) return;
+    const target = tasks.find((t) => t.id === taskId);
+    if (!target) return;
+    const subtask: Subtask = {
+      id: Date.now().toString(),
+      title,
+      done: false,
+    };
+    const updated: Task = {
+      ...target,
+      subtasks: [...target.subtasks, subtask],
+      updatedAt: new Date().toISOString(),
+    };
+    try {
+      await db.updateTask(updated);
+      setTasks((prev) => prev.map((t) => (t.id === taskId ? updated : t)));
+    } catch (e) {
+      console.error(e);
+    }
+  }
+
+  async function toggleSubtask(taskId: string, subtaskId: string): Promise<void> {
+    const target = tasks.find((t) => t.id === taskId);
+    if (!target) return;
+    const nextSubtasks = target.subtasks.map((s) =>
+      s.id === subtaskId ? { ...s, done: !s.done } : s,
+    );
+    const now = new Date().toISOString();
+    const allDone = nextSubtasks.every((s) => s.done);
+    let nextStatus: Task["status"] = target.status;
+    let nextCompletedAt: string | undefined = target.completedAt;
+    if (target.status === "done" && !allDone) {
+      nextStatus = "in-progress";
+      nextCompletedAt = undefined;
+    }
+    const updated: Task = {
+      ...target,
+      subtasks: nextSubtasks,
+      status: nextStatus,
+      completedAt: nextCompletedAt,
+      updatedAt: now,
+    };
+    try {
+      await db.updateTask(updated);
+      setTasks((prev) => prev.map((t) => (t.id === taskId ? updated : t)));
+    } catch (e) {
+      console.error(e);
+    }
+  }
+
+  async function deleteSubtask(taskId: string, subtaskId: string): Promise<void> {
+    const target = tasks.find((t) => t.id === taskId);
+    if (!target) return;
+    const updated: Task = {
+      ...target,
+      subtasks: target.subtasks.filter((s) => s.id !== subtaskId),
+      updatedAt: new Date().toISOString(),
+    };
+    try {
+      await db.updateTask(updated);
+      setTasks((prev) => prev.map((t) => (t.id === taskId ? updated : t)));
     } catch (e) {
       console.error(e);
     }
